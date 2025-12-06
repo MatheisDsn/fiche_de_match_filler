@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 from datetime import datetime
 import google.generativeai as genai
+from google.api_core import exceptions
 import os
 import json
 import difflib
@@ -19,7 +20,8 @@ else:
 if api_key:
     os.environ["GOOGLE_API_KEY"] = api_key
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.5-pro')
+    # Utilisation de gemini-1.5-flash qui est plus rapide et a souvent de meilleurs quotas gratuits
+    model = genai.GenerativeModel('gemini-2.5-flash')
 
 # --- HEADERS & COOKIES ---
 # Idéalement, mettez ces cookies dans st.secrets aussi pour ne pas les exposer
@@ -144,7 +146,14 @@ def analyser_match_basket(chemin_fichier, nom_club_cible="ALLOEU BASKET CLUB"):
     mon_fichier = genai.upload_file(chemin_fichier, mime_type="application/pdf")
     
     with st.spinner(f"Analyse du match pour {nom_club_cible} en cours avec Gemini..."):
-        response = model.generate_content([mon_fichier, prompt])
+        try:
+            response = model.generate_content([mon_fichier, prompt])
+        except exceptions.ResourceExhausted:
+            st.error("⚠️ Quota Gemini dépassé (ResourceExhausted). Le modèle gratuit a atteint ses limites. Attendez quelques minutes ou utilisez une autre clé API.")
+            return None
+        except Exception as e:
+            st.error(f"Une erreur s'est produite lors de l'appel à Gemini : {e}")
+            return None
     
     try:
         clean_text = response.text.replace('```json', '').replace('```', '').strip()
