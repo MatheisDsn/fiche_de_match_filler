@@ -266,6 +266,10 @@ def update_event_stats(event, pdf_path):
 
 st.title("🏀 Gestion Matchs SportEasy")
 
+# Initialiser session_state si nécessaire
+if 'matchs' not in st.session_state:
+    st.session_state['matchs'] = []
+
 col1, col2 = st.columns(2)
 with col1:
     month = st.number_input("Mois", min_value=1, max_value=12, value=12)
