@@ -1,6 +1,6 @@
 import streamlit as st
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import google.generativeai as genai
 from google.api_core import exceptions
 import os
@@ -47,6 +47,10 @@ HEADERS = {
 }
 
 # --- FONCTIONS UTILITAIRES ---
+
+def get_forum_url(event_id, team_slug):
+    """Construit l'URL du forum du match"""
+    return f"https://{team_slug}.sporteasy.net/event/{event_id}/forum/"
 
 def convert_time(time_str):
     if not time_str or time_str == "00:00":
@@ -275,14 +279,19 @@ if st.button("Charger les matchs"):
     if response.status_code == 200:
         results = response.json()["results"]
         matchs = []
+        now = datetime.now()
+        five_days_ago = now - timedelta(days=5)
+        
         for event in results:
             if event["type"]['id'] == 7 and event["team_name"] != "ARBITRES":
                 dt = datetime.fromisoformat(event["start_at"])
-                label = f"{dt.strftime('%d/%m')} - {event['team_name']} : {event['opponent_left']['full_name']} VS {event['opponent_right']['full_name']}"
-                matchs.append({"label": label, "data": event})
+                # Filtre : garder seulement les matchs de moins de 5 jours
+                if dt >= five_days_ago:
+                    label = f"{dt.strftime('%d/%m')} - {event['team_name']} : {event['opponent_left']['full_name']} VS {event['opponent_right']['full_name']}"
+                    matchs.append({"label": label, "data": event})
         
         st.session_state['matchs'] = matchs
-        st.success(f"{len(matchs)} matchs trouvés.")
+        st.success(f"{len(matchs)} matchs trouvés (moins de 5 jours).")
     else:
         st.error(f"Erreur chargement matchs: {response.status_code}")
 
@@ -304,5 +313,16 @@ if 'matchs' in st.session_state and st.session_state['matchs']:
             
             try:
                 update_event_stats(selected_match, tmp_path)
+                # Affiche le bouton forum après succès
+                st.divider()
+                st.subheader("Accéder au forum")
+                
+                # Récupère le slug de l'équipe (exemple: 'alloeu-basket-club-u11')
+                team_slug = selected_match.get('team_slug', 'alloeu-basket-club-u11')
+                event_id = selected_match['id']
+                forum_url = get_forum_url(event_id, team_slug)
+                
+                st.markdown(f"### [🔗 Accéder au forum du match]({forum_url})", unsafe_allow_html=True)
+                st.info(f"Forum: {forum_url}")
             finally:
                 os.remove(tmp_path) # Nettoyage
