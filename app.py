@@ -26,6 +26,7 @@ if api_key:
 # --- HEADERS & COOKIES ---
 # Idéalement, mettez ces cookies dans st.secrets aussi pour ne pas les exposer
 DEFAULT_COOKIES = (
+    "se_csrftoken=67meREjj8e05BzDVEN2Nrq32w45hrPZk; "
     "se_referer=\"https://www.google.com/\"; "
     "se_first_url=https%3A%2F%2Fwww.sporteasy.net%2Ffr%2F; "
     "se_last_url=\"/fr/profile/teams/\"; "
@@ -38,14 +39,29 @@ DEFAULT_COOKIES = (
 
 user_cookies = st.sidebar.text_area("Cookies SportEasy (si changés)", value=DEFAULT_COOKIES, height=100)
 
+# Extraire le CSRF token des cookies
+def extract_csrf_token(cookie_string):
+    """Extrait le token CSRF depuis la chaîne de cookies"""
+    import re
+    match = re.search(r'se_csrftoken=([^;]+)', cookie_string)
+    if match:
+        return match.group(1).strip()
+    return None
+
+csrf_token = extract_csrf_token(user_cookies)
+
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0) Gecko/20100101 Firefox/145.0",
     "Accept": "application/json",
     "Referer": "https://alloeu-basket-club.sporteasy.net/",
     "Origin": "https://alloeu-basket-club.sporteasy.net",
-    "x-csrftoken": "WzwU5QNlQTysEJNOww2NACxltnk4mXs5",
+    "x-csrftoken": csrf_token if csrf_token else "",
     "Cookie": user_cookies
 }
+
+# Afficher un avertissement si le CSRF token est manquant
+if not csrf_token:
+    st.sidebar.warning("⚠️ CSRF token manquant ! Les modifications (PUT) échoueront. Ajoutez 'se_csrftoken=...' au début des cookies.")
 
 # --- FONCTIONS UTILITAIRES ---
 
