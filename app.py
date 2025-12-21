@@ -288,7 +288,7 @@ if st.button("Charger les matchs"):
         five_days_ago = now - timedelta(days=5)
         
         for event in results:
-            if event["type"]['id'] == 7 and event["team_name"] != "ARBITRES":
+            if event["type"]['id'] == 7 and event["team_name"] != "ARBITRES" or event["type"]['id'] == 5 or event["type"]['id'] == 4 :
                 dt = datetime.fromisoformat(event["start_at"])
                 # Retire le fuseau horaire pour la comparaison
                 dt_naive = dt.replace(tzinfo=None) if dt.tzinfo else dt
