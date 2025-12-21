@@ -26,13 +26,14 @@ if api_key:
 # --- HEADERS & COOKIES ---
 # Idéalement, mettez ces cookies dans st.secrets aussi pour ne pas les exposer
 DEFAULT_COOKIES = (
-    "se_csrftoken=WzwU5QNlQTysEJNOww2NACxltnk4mXs5; "
-    "didomi_token=eyJ1c2VyX2lkIjoiMTk3OWNjMTctYTJmMS02NDhjLWJiNTctNTc1NjZhNmJkNDA2IiwiY3JlYXRlZCI6IjIwMjUtMDYtMjNUMTI6MjY6NTQuODk1WiIsInVwZGF0ZWQiOiIyMDI1LTA2LTIzVDEyOjI3OjM5LjY3OVoiLCJ2ZXJzaW9uIjoyLCJ2ZW5kb3JzIjp7ImVuYWJsZWQiOlsiZ29vZ2xlIiwiYzpnb29nbGVhbmEtNFRYbkppZ1IiLCJjOmxpbmtlZGluLW1hcmtldGluZy1zb2x1dGlvbnMiLCJjOmh1YnNwb3QiLCJjOmFtcGxpdHVkZSIsImM6eW91dHViZSIsImM6aG90amFyIiwiYzpuZXctcmVsaWMiLCJjOmh1YnNwb3QtZm9ybXMiLCJjOmxpbmtlZGluIl19LCJ2ZW5kb3JzX2xpIjp7ImVuYWJsZWQiOlsiZ29vZ2xlIl19LCJhYyI6IkFGbUFDQUZrLkFGbUFDQUZrIn0=; "
-    "euconsent-v2=CQTdfoAQTdfoAAHABBENBvFgAP_AAELAAAqIGSQAgF5gMkAySAEAvMBkgAAA.f_gACFgAAAAA; "
-    "se_last_url=\"/fr/notifications/\"; "
     "se_referer=\"https://www.google.com/\"; "
-    "sporteasy=cbn86tfo3psuoz0bcuvjipcf2bkkrvc1; "
-    "se_first_url=\"/fr/notifications/\""
+    "se_first_url=https%3A%2F%2Fwww.sporteasy.net%2Ffr%2F; "
+    "se_last_url=\"/fr/profile/teams/\"; "
+    "didomi_token=eyJ1c2VyX2lkIjoiMTliMTcwMDYtYTEyZC02OTU4LWIyMWUtMTQ3ZDRkZWQ0ZTFkIiwiY3JlYXRlZCI6IjIwMjUtMTItMTNUMDk6MTc6NDEuNzc4WiIsInVwZGF0ZWQiOiIyMDI1LTEyLTEzVDA5OjE3OjU5LjE1NloiLCJ2ZXJzaW9uIjoyLCJ2ZW5kb3JzIjp7ImVuYWJsZWQiOlsiZ29vZ2xlIiwiYzpnb29nbGVhbmEtNFRYbkppZ1IiLCJjOmxpbmtlZGluLW1hcmtldGluZy1zb2x1dGlvbnMiLCJjOmh1YnNwb3QiLCJjOmFtcGxpdHVkZSIsImM6eW91dHViZSIsImM6aG90amFyIiwiYzpuZXctcmVsaWMiLCJjOmh1YnNwb3QtZm9ybXMiLCJjOmxpbmtlZGluIl19LCJ2ZW5kb3JzX2xpIjp7ImVuYWJsZWQiOlsiZ29vZ2xlIl19LCJhYyI6IkFGbUFDQUZrLkFGbUFDQUZrIn0=; "
+    "sporteasy=a4lgdp0ogd6elkscw9wxguhmd86fekdt; "
+    "euconsent-v2=CQcXr0AQcXr0AAHABBENCIFgAP_AAELAAAqIGSQAgF5gMkAySAEAvMBkgAAA.f_gACFgAAAAA; "
+    "_ga=GA1.1.392473986.1765617478; "
+    "_ga_N6SPHF8K4P=GS2.1.s1765617477$o1$g1$t1765617725$j42$l0$h856859297"
 )
 
 user_cookies = st.sidebar.text_area("Cookies SportEasy (si changés)", value=DEFAULT_COOKIES, height=100)
