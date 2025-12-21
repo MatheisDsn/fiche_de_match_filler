@@ -284,21 +284,15 @@ if st.button("Charger les matchs"):
     if response.status_code == 200:
         results = response.json()["results"]
         matchs = []
-        now = datetime.now()
-        five_days_ago = now - timedelta(days=5)
         
         for event in results:
             if event["type"]['id'] == 7 and event["team_name"] != "ARBITRES":
                 dt = datetime.fromisoformat(event["start_at"])
-                # Retire le fuseau horaire pour la comparaison
-                dt_naive = dt.replace(tzinfo=None) if dt.tzinfo else dt
-                # Filtre : garder seulement les matchs de moins de 5 jours
-                if dt_naive >= five_days_ago:
-                    label = f"{dt.strftime('%d/%m')} - {event['team_name']} : {event['opponent_left']['full_name']} VS {event['opponent_right']['full_name']}"
-                    matchs.append({"label": label, "data": event})
+                label = f"{dt.strftime('%d/%m')} - {event['team_name']} : {event['opponent_left']['full_name']} VS {event['opponent_right']['full_name']}"
+                matchs.append({"label": label, "data": event})
         
         st.session_state['matchs'] = matchs
-        st.success(f"{len(matchs)} matchs trouvés (moins de 5 jours).")
+        st.success(f"{len(matchs)} matchs trouvés.")
     else:
         st.error(f"Erreur chargement matchs: {response.status_code}")
 
