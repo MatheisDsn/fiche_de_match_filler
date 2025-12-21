@@ -286,7 +286,7 @@ if st.button("Charger les matchs"):
         matchs = []
         
         for event in results:
-            if event["type"]['id'] == 7 and event["team_name"] != "ARBITRES" and event["type"]['id'] != 5 :
+            if event["type"]['id'] == 7 and event["team_name"] != "ARBITRES" or event["type"]['id'] == 5 or event["type"]['id'] == 4 :
                 dt = datetime.fromisoformat(event["start_at"])
                 label = f"{dt.strftime('%d/%m')} - {event['team_name']} : {event['opponent_left']['full_name']} VS {event['opponent_right']['full_name']}"
                 matchs.append({"label": label, "data": event})
