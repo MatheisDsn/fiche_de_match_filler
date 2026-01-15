@@ -31,10 +31,11 @@ if 'sporteasy_cookie_value' not in st.session_state:
 sporteasy_value = st.sidebar.text_input(
     "Cookie SportEasy",
     value=st.session_state['sporteasy_cookie_value'],
-    key='cookie_input',
-    on_change=lambda: st.session_state.update({'sporteasy_cookie_value': st.session_state['cookie_input']}),
     help="Entrez uniquement la valeur du cookie sporteasy (ex: a4lgdp0ogd6elkscw9wxguhmd86fekdt)"
 )
+
+# Sauvegarder la valeur actuelle dans session_state
+st.session_state['sporteasy_cookie_value'] = sporteasy_value
 
 # Construire la chaîne complète des cookies
 user_cookies = (
