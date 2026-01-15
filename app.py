@@ -23,26 +23,30 @@ else:
     st.error("⚠️ Clé API Google Gemini manquante dans st.secrets")
 
 # --- HEADERS & COOKIES ---
-# Initialiser le cookie dans session_state s'il n'existe pas
-if 'sporteasy_cookie' not in st.session_state:
-    st.session_state['sporteasy_cookie'] = (
-        "se_csrftoken=67meREjj8e05BzDVEN2Nrq32w45hrPZk; "
-        "se_referer=\"https://www.google.com/\"; "
-        "se_first_url=https%3A%2F%2Fwww.sporteasy.net%2Ffr%2F; "
-        "se_last_url=\"/fr/profile/teams/\"; "
-        "didomi_token=eyJ1c2VyX2lkIjoiMTliMTcwMDYtYTEyZC02OTU4LWIyMWUtMTQ3ZDRkZWQ0ZTFkIiwiY3JlYXRlZCI6IjIwMjUtMTItMTNUMDk6MTc6NDEuNzc4WiIsInVwZGF0ZWQiOiIyMDI1LTEyLTEzVDA5OjE3OjU5LjE1NloiLCJ2ZXJzaW9uIjoyLCJ2ZW5kb3JzIjp7ImVuYWJsZWQiOlsiZ29vZ2xlIiwiYzpnb29nbGVhbmEtNFRYbkppZ1IiLCJjOmxpbmtlZGluLW1hcmtldGluZy1zb2x1dGlvbnMiLCJjOmh1YnNwb3QiLCJjOmFtcGxpdHVkZSIsImM6eW91dHViZSIsImM6aG90amFyIiwiYzpuZXctcmVsaWMiLCJjOmh1YnNwb3QtZm9ybXMiLCJjOmxpbmtlZGluIl19LCJ2ZW5kb3JzX2xpIjp7ImVuYWJsZWQiOlsiZ29vZ2xlIl19LCJhYyI6IkFGbUFDQUZrLkFGbUFDQUZrIn0=; "
-        "sporteasy=a4lgdp0ogd6elkscw9wxguhmd86fekdt; "
-        "euconsent-v2=CQcXr0AQcXr0AAHABBENCIFgAP_AAELAAAqIGSQAgF5gMkAySAEAvMBkgAAA.f_gACFgAAAAA; "
-        "_ga=GA1.1.392473986.1765617478; "
-        "_ga_N6SPHF8K4P=GS2.1.s1765617477$o1$g1$t1765617725$j42$l0$h856859297"
-    )
+# Initialiser le cookie sporteasy dans session_state s'il n'existe pas
+if 'sporteasy_cookie_value' not in st.session_state:
+    st.session_state['sporteasy_cookie_value'] = "a4lgdp0ogd6elkscw9wxguhmd86fekdt"
 
-user_cookies = st.sidebar.text_area(
-    "Cookies SportEasy",
-    value=st.session_state['sporteasy_cookie'],
-    height=100,
+# Champ pour saisir uniquement la valeur du cookie sporteasy
+sporteasy_value = st.sidebar.text_input(
+    "Cookie SportEasy",
+    value=st.session_state['sporteasy_cookie_value'],
     key='cookie_input',
-    on_change=lambda: st.session_state.update({'sporteasy_cookie': st.session_state['cookie_input']})
+    on_change=lambda: st.session_state.update({'sporteasy_cookie_value': st.session_state['cookie_input']}),
+    help="Entrez uniquement la valeur du cookie sporteasy (ex: a4lgdp0ogd6elkscw9wxguhmd86fekdt)"
+)
+
+# Construire la chaîne complète des cookies
+user_cookies = (
+    "se_csrftoken=67meREjj8e05BzDVEN2Nrq32w45hrPZk; "
+    "se_referer=\"https://www.google.com/\"; "
+    "se_first_url=https%3A%2F%2Fwww.sporteasy.net%2Ffr%2F; "
+    "se_last_url=\"/fr/profile/teams/\"; "
+    "didomi_token=eyJ1c2VyX2lkIjoiMTliMTcwMDYtYTEyZC02OTU4LWIyMWUtMTQ3ZDRkZWQ0ZTFkIiwiY3JlYXRlZCI6IjIwMjUtMTItMTNUMDk6MTc6NDEuNzc4WiIsInVwZGF0ZWQiOiIyMDI1LTEyLTEzVDA5OjE3OjU5LjE1NloiLCJ2ZXJzaW9uIjoyLCJ2ZW5kb3JzIjp7ImVuYWJsZWQiOlsiZ29vZ2xlIiwiYzpnb29nbGVhbmEtNFRYbkppZ1IiLCJjOmxpbmtlZGluLW1hcmtldGluZy1zb2x1dGlvbnMiLCJjOmh1YnNwb3QiLCJjOmFtcGxpdHVkZSIsImM6eW91dHViZSIsImM6aG90amFyIiwiYzpuZXctcmVsaWMiLCJjOmh1YnNwb3QtZm9ybXMiLCJjOmxpbmtlZGluIl19LCJ2ZW5kb3JzX2xpIjp7ImVuYWJsZWQiOlsiZ29vZ2xlIl19LCJhYyI6IkFGbUFDQUZrLkFGbUFDQUZrIn0=; "
+    f"sporteasy={sporteasy_value}; "
+    "euconsent-v2=CQcXr0AQcXr0AAHABBENCIFgAP_AAELAAAqIGSQAgF5gMkAySAEAvMBkgAAA.f_gACFgAAAAA; "
+    "_ga=GA1.1.392473986.1765617478; "
+    "_ga_N6SPHF8K4P=GS2.1.s1765617477$o1$g1$t1765617725$j42$l0$h856859297"
 )
 
 # Extraire le CSRF token des cookies
