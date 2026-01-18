@@ -25,7 +25,7 @@ else:
 # --- HEADERS & COOKIES ---
 # Initialiser le cookie sporteasy dans session_state s'il n'existe pas
 if 'sporteasy_cookie_value' not in st.session_state:
-    st.session_state['sporteasy_cookie_value'] = "a4lgdp0ogd6elkscw9wxguhmd86fekdt"
+    st.session_state['sporteasy_cookie_value'] = "6mvsuytjaccvszr2zsy2w5fc2t2adb2l"
 
 # Champ pour saisir uniquement la valeur du cookie sporteasy
 sporteasy_value = st.sidebar.text_input(
