@@ -25,7 +25,7 @@ else:
 # --- HEADERS & COOKIES ---
 # Initialiser le cookie sporteasy dans session_state s'il n'existe pas
 if 'sporteasy_cookie_value' not in st.session_state:
-    st.session_state['sporteasy_cookie_value'] = "6mvsuytjaccvszr2zsy2w5fc2t2adb2l"
+    st.session_state['sporteasy_cookie_value'] = "a4lgdp0ogd6elkscw9wxguhmd86fekdt"
 
 # Champ pour saisir uniquement la valeur du cookie sporteasy
 sporteasy_value = st.sidebar.text_input(
@@ -303,11 +303,20 @@ current_date = datetime.now()
 current_month = current_date.month
 current_year = current_date.year
 
-col1, col2 = st.columns(2)
-with col1:
-    month = st.number_input("Mois", min_value=1, max_value=12, value=current_month)
-with col2:
-    year = st.number_input("Année", min_value=2024, max_value=2030, value=current_year)
+# Checkbox pour le filtre des 5 jours
+filter_5_days = st.checkbox("Afficher uniquement les matchs de moins de 5 jours", value=True)
+
+# Afficher les sélecteurs de mois/année uniquement si le filtre n'est pas actif
+if not filter_5_days:
+    col1, col2 = st.columns(2)
+    with col1:
+        month = st.number_input("Mois", min_value=1, max_value=12, value=current_month)
+    with col2:
+        year = st.number_input("Année", min_value=2024, max_value=2030, value=current_year)
+else:
+    # Valeurs par défaut si le filtre est actif
+    month = current_month
+    year = current_year
 
 if st.button("Charger les matchs"):
     url = f"https://api.sporteasy.net/v2.1/clubs/587/events/?month={month}&year={year}"
@@ -324,13 +333,20 @@ if st.button("Charger les matchs"):
                 dt = datetime.fromisoformat(event["start_at"])
                 # Retire le fuseau horaire pour la comparaison
                 dt_naive = dt.replace(tzinfo=None) if dt.tzinfo else dt
-                # Filtre : garder seulement les matchs de moins de 5 jours
-                if dt_naive >= five_days_ago:
+                
+                # Appliquer le filtre des 5 jours seulement si la checkbox est cochée
+                if filter_5_days:
+                    if dt_naive >= five_days_ago:
+                        label = f"{dt.strftime('%d/%m')} - {event['team_name']} : {event['opponent_left']['full_name']} VS {event['opponent_right']['full_name']}"
+                        matchs.append({"label": label, "data": event})
+                else:
                     label = f"{dt.strftime('%d/%m')} - {event['team_name']} : {event['opponent_left']['full_name']} VS {event['opponent_right']['full_name']}"
                     matchs.append({"label": label, "data": event})
         
-        st.session_state['matchs'] = matchs
-        st.success(f"{len(matchs)} matchs trouvés (moins de 5 jours).")
+        if filter_5_days:
+            st.success(f"{len(matchs)} matchs trouvés (moins de 5 jours).")
+        else:
+            st.success(f"{len(matchs)} matchs trouvés pour {month}/{year}.")
     else:
         st.error(f"Erreur chargement matchs: {response.status_code}")
 
