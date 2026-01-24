@@ -343,6 +343,8 @@ if st.button("Charger les matchs"):
                     label = f"{dt.strftime('%d/%m')} - {event['team_name']} : {event['opponent_left']['full_name']} VS {event['opponent_right']['full_name']}"
                     matchs.append({"label": label, "data": event})
         
+        st.session_state['matchs'] = matchs
+        
         if filter_5_days:
             st.success(f"{len(matchs)} matchs trouvés (moins de 5 jours).")
         else:
