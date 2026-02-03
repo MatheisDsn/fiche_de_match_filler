@@ -210,9 +210,58 @@ def match_players(gemini_stats, se_players):
             
     return mapping
 
+def analyser_feuille_match(chemin_fichier):
+    """Analyse la feuille de match officielle pour extraire les officiels de table (page 2)"""
+    prompt = """
+    Tu es un assistant expert en statistiques de basket. Analyse ce document qui contient la feuille de match officielle.
+    
+    IMPORTANT : Focus UNIQUEMENT sur la PAGE 2 du document.
+    
+    Tâche : Extraction des officiels de table
+    - En bas de la page 2, cherche l'encadré contenant les officiels de table
+    - Extrais TOUS les noms pour ces rôles (certaines cases peuvent être vides) :
+      - Marqueur
+      - Chronométreur
+      - Chronométreur des tirs (ou "Chrono Tirs" ou "24 secondes" ou "Opérateur 24 sec")
+      - Aide Marqueur
+    - Si un rôle est vide, ne l'inclus pas dans la liste
+    - Extrais UNIQUEMENT les noms (Nom Prénom), pas les rôles
+
+    Format de réponse attendu :
+    Réponds UNIQUEMENT avec un objet JSON valide (sans Markdown ```json) suivant cette structure :
+    {{
+      "officiels_table": [
+        "Nom Prénom",
+        "Autre Nom"
+      ]
+    }}
+    """
+    
+    mon_fichier = genai.upload_file(chemin_fichier, mime_type="application/pdf")
+    
+    with st.spinner("📋 Analyse de la feuille de match (officiels de table)..."):
+        try:
+            response = model.generate_content([mon_fichier, prompt])
+        except exceptions.ResourceExhausted:
+            st.error("⚠️ Quota Gemini dépassé (ResourceExhausted). Le modèle gratuit a atteint ses limites. Attendez quelques minutes ou utilisez une autre clé API.")
+            return None
+        except Exception as e:
+            st.error(f"Une erreur s'est produite lors de l'appel à Gemini : {e}")
+            return None
+    
+    try:
+        clean_text = response.text.replace('```json', '').replace('```', '').strip()
+        data = json.loads(clean_text)
+        return data
+    except json.JSONDecodeError:
+        st.error("Erreur : La réponse de Gemini n'est pas un JSON valide.")
+        st.code(response.text)
+        return None
+
 def analyser_match_basket(chemin_fichier, nom_club_cible="ALLOEU BASKET CLUB"):
+    """Analyse le résumé de match pour extraire les scores et statistiques des joueurs"""
     prompt = f"""
-    Tu es un assistant expert en statistiques de basket. Analyse ce document qui contient les feuilles de match.
+    Tu es un assistant expert en statistiques de basket. Analyse ce document qui contient le résumé de match.
     
     Tâche 1 : Identification des équipes
     - Regarde en haut du document pour identifier qui est "Équipe A" et qui est "Équipe B".
@@ -232,15 +281,6 @@ def analyser_match_basket(chemin_fichier, nom_club_cible="ALLOEU BASKET CLUB"):
       - 2 Pts Réussis (ATTENTION : Tu dois additionner "2 Int Réussis" et "2 Ext Réussis")
       - LF Réussis
       - Fautes Commises (Ftes Com)
-
-    Tâche 4 : Officiels de table (EN BAS DE LA PAGE 2)
-    - Cherche l'encadré contenant les officiels de table
-    - Extrais les noms pour ces rôles (certaines cases peuvent être vides) :
-      - Marqueur
-      - Chronométreur
-      - Chronométreur des tirs (ou "Chrono Tirs" ou "24 secondes")
-      - Aide Marqueur
-    - Si un rôle est vide, ne l'inclus pas dans la liste
 
     Format de réponse attendu : 
     Réponds UNIQUEMENT avec un objet JSON valide (sans Markdown ```json) suivant cette structure :
@@ -262,16 +302,13 @@ def analyser_match_basket(chemin_fichier, nom_club_cible="ALLOEU BASKET CLUB"):
           "lf": 0,
           "fautes": 0
         }}
-      ],
-      "officiels_table": [
-        "Nom Prénom"
       ]
     }}
     """
 
     mon_fichier = genai.upload_file(chemin_fichier, mime_type="application/pdf")
     
-    with st.spinner(f"Analyse du match pour {nom_club_cible} en cours avec Gemini..."):
+    with st.spinner(f"📊 Analyse du résumé de match pour {nom_club_cible}..."):
         try:
             response = model.generate_content([mon_fichier, prompt])
         except exceptions.ResourceExhausted:
@@ -290,23 +327,27 @@ def analyser_match_basket(chemin_fichier, nom_club_cible="ALLOEU BASKET CLUB"):
         st.code(response.text)
         return None
 
-def update_event_stats(event, pdf_path):
+def update_event_stats(event, resume_path, feuille_path):
     club_name = "ALLOEU BASKET CLUB" 
     
-    stats_data = analyser_match_basket(pdf_path, club_name)
+    # Analyse du résumé de match (scores + stats joueurs)
+    stats_data = analyser_match_basket(resume_path, club_name)
     if not stats_data:
         return
 
-    st.success("Analyse PDF terminée !")
+    st.success("✅ Analyse du résumé de match terminée !")
     st.json(stats_data['match_info'])
     
-    # Mise à jour du comptage des officiels de table
-    if 'officiels_table' in stats_data and stats_data['officiels_table']:
+    # Analyse de la feuille de match (officiels de table)
+    officiels_data = analyser_feuille_match(feuille_path)
+    if officiels_data and 'officiels_table' in officiels_data and officiels_data['officiels_table']:
         st.divider()
         st.subheader("📋 Officiels de table détectés")
-        for officiel in stats_data['officiels_table']:
+        for officiel in officiels_data['officiels_table']:
             st.write(f"• {officiel}")
-        update_google_sheet(stats_data['officiels_table'])
+        update_google_sheet(officiels_data['officiels_table'])
+    else:
+        st.warning("⚠️ Aucun officiel de table détecté dans la feuille de match")
 
     team_id = event['opponent_right']['id'] if event['opponent_right']['is_current_team'] else event['opponent_left']['id']
     event_id = event['id']
@@ -461,17 +502,32 @@ if 'matchs' in st.session_state and st.session_state['matchs']:
     st.write("---")
     st.subheader("Mise à jour via PDF")
     
-    uploaded_file = st.file_uploader("Choisir la feuille de match (PDF)", type="pdf")
+    st.info("📄 Il faut fournir 2 documents PDF distincts :")
+    col1, col2 = st.columns(2)
     
-    if uploaded_file is not None and api_key:
-        if st.button("Lancer l'analyse et la mise à jour"):
-            # Sauvegarde temporaire du fichier pour Gemini
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-                tmp_file.write(uploaded_file.getvalue())
-                tmp_path = tmp_file.name
+    with col1:
+        st.markdown("**1️⃣ Résumé de match**")
+        st.caption("Contient les scores et statistiques des joueurs")
+        resume_file = st.file_uploader("📊 Résumé de match (PDF)", type="pdf", key="resume")
+    
+    with col2:
+        st.markdown("**2️⃣ Feuille de match officielle**")
+        st.caption("Contient les officiels de table (page 2)")
+        feuille_file = st.file_uploader("📋 Feuille de match (PDF)", type="pdf", key="feuille")
+    
+    if resume_file is not None and feuille_file is not None and api_key:
+        if st.button("🚀 Lancer l'analyse et la mise à jour"):
+            # Sauvegarde temporaire des fichiers pour Gemini
+            with tempfile.NamedTemporaryFile(delete=False, suffix="_resume.pdf") as tmp_resume:
+                tmp_resume.write(resume_file.getvalue())
+                resume_path = tmp_resume.name
+            
+            with tempfile.NamedTemporaryFile(delete=False, suffix="_feuille.pdf") as tmp_feuille:
+                tmp_feuille.write(feuille_file.getvalue())
+                feuille_path = tmp_feuille.name
             
             try:
-                update_event_stats(selected_match, tmp_path)
+                update_event_stats(selected_match, resume_path, feuille_path)
                 # Affiche le bouton forum après succès
                 st.divider()
                 st.subheader("Accéder au forum")
@@ -484,4 +540,6 @@ if 'matchs' in st.session_state and st.session_state['matchs']:
                 st.markdown(f"### [🔗 Accéder au forum du match]({forum_url})", unsafe_allow_html=True)
                 st.info(f"Forum: {forum_url}")
             finally:
-                os.remove(tmp_path) # Nettoyage
+                # Nettoyage des fichiers temporaires
+                os.remove(resume_path)
+                os.remove(feuille_path)
