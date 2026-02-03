@@ -7,6 +7,8 @@ import os
 import json
 import difflib
 import tempfile
+import gspread
+from google.oauth2.service_account import Credentials
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="SportEasy Stats Updater", page_icon="🏀")
@@ -22,16 +24,32 @@ if "GOOGLE_API_KEY" in st.secrets:
 else:
     st.error("⚠️ Clé API Google Gemini manquante dans st.secrets")
 
+# Configuration Google Sheets
+gsheet_client = None
+if "gcp_service_account" in st.secrets:
+    try:
+        scopes = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive"
+        ]
+        credentials = Credentials.from_service_account_info(
+            st.secrets["gcp_service_account"],
+            scopes=scopes
+        )
+        gsheet_client = gspread.authorize(credentials)
+    except Exception as e:
+        st.sidebar.error(f"⚠️ Erreur connexion Google Sheets: {e}")
+
 # --- HEADERS & COOKIES ---
 # Initialiser le cookie sporteasy dans session_state s'il n'existe pas
 if 'sporteasy_cookie_value' not in st.session_state:
-    st.session_state['sporteasy_cookie_value'] = "gl53blz0iqxbxhjho0vzz2wzzluf1eir"
+    st.session_state['sporteasy_cookie_value'] = "a4lgdp0ogd6elkscw9wxguhmd86fekdt"
 
 # Champ pour saisir uniquement la valeur du cookie sporteasy
 sporteasy_value = st.sidebar.text_input(
     "Cookie SportEasy",
     value=st.session_state['sporteasy_cookie_value'],
-    help="Entrez uniquement la valeur du cookie sporteasy (ex: gl53blz0iqxbxhjho0vzz2wzzluf1eir)"
+    help="Entrez uniquement la valeur du cookie sporteasy (ex: a4lgdp0ogd6elkscw9wxguhmd86fekdt)"
 )
 
 # Sauvegarder la valeur actuelle dans session_state
@@ -93,6 +111,70 @@ def convert_time(time_str):
     except:
         return 0
 
+def update_google_sheet(noms_officiels):
+    """Met à jour le Google Sheet avec les officiels de table"""
+    if not gsheet_client:
+        st.warning("⚠️ Connexion Google Sheets non configurée")
+        return
+    
+    if not noms_officiels:
+        st.info("ℹ️ Aucun officiel de table détecté")
+        return
+    
+    try:
+        sheet_id = st.secrets.get("GOOGLE_SHEET_ID")
+        sheet_name = st.secrets.get("GOOGLE_SHEET_NAME", "Feuille 1")
+        
+        if not sheet_id:
+            st.error("❌ GOOGLE_SHEET_ID manquant dans secrets.toml")
+            return
+        
+        # Ouvrir le Google Sheet
+        spreadsheet = gsheet_client.open_by_key(sheet_id)
+        worksheet = spreadsheet.worksheet(sheet_name)
+        
+        # Récupérer toutes les données (colonne A = noms, colonne B = compteurs)
+        all_data = worksheet.get_all_values()
+        
+        # Créer un dictionnaire des noms existants {nom: ligne}
+        existing_data = {}
+        if len(all_data) > 1:  # Si plus que l'en-tête
+            for idx, row in enumerate(all_data[1:], start=2):  # Start à 2 car ligne 1 = header
+                if len(row) >= 2 and row[0]:  # Si nom existe
+                    existing_data[row[0].strip().lower()] = {
+                        'row': idx,
+                        'count': int(row[1]) if row[1].isdigit() else 0
+                    }
+        
+        # Mettre à jour ou ajouter chaque officiel
+        updates = []
+        for nom in noms_officiels:
+            nom_clean = nom.strip()
+            nom_lower = nom_clean.lower()
+            
+            if nom_lower in existing_data:
+                # Incrémenter
+                row_num = existing_data[nom_lower]['row']
+                new_count = existing_data[nom_lower]['count'] + 1
+                worksheet.update_cell(row_num, 2, new_count)
+                updates.append(f"✅ {nom_clean}: {existing_data[nom_lower]['count']} → {new_count}")
+            else:
+                # Ajouter nouvelle ligne
+                next_row = len(all_data) + 1
+                worksheet.update_cell(next_row, 1, nom_clean)
+                worksheet.update_cell(next_row, 2, 1)
+                updates.append(f"✨ {nom_clean}: Nouveau (1)")
+        
+        if updates:
+            st.success(f"📊 Google Sheet mis à jour ({len(updates)} officiels)")
+            for update in updates:
+                st.write(update)
+    
+    except gspread.exceptions.SpreadsheetNotFound:
+        st.error("❌ Google Sheet introuvable. Vérifie l'ID et partage le sheet avec le service account.")
+    except Exception as e:
+        st.error(f"❌ Erreur mise à jour Google Sheet: {e}")
+
 def match_players(gemini_stats, se_players):
     mapping = {}
     for g_player in gemini_stats:
@@ -151,6 +233,15 @@ def analyser_match_basket(chemin_fichier, nom_club_cible="ALLOEU BASKET CLUB"):
       - LF Réussis
       - Fautes Commises (Ftes Com)
 
+    Tâche 4 : Officiels de table (EN BAS DE LA PAGE 2)
+    - Cherche l'encadré contenant les officiels de table
+    - Extrais les noms pour ces rôles (certaines cases peuvent être vides) :
+      - Marqueur
+      - Chronométreur
+      - Chronométreur des tirs (ou "Chrono Tirs" ou "24 secondes")
+      - Aide Marqueur
+    - Si un rôle est vide, ne l'inclus pas dans la liste
+
     Format de réponse attendu : 
     Réponds UNIQUEMENT avec un objet JSON valide (sans Markdown ```json) suivant cette structure :
     {{
@@ -171,6 +262,9 @@ def analyser_match_basket(chemin_fichier, nom_club_cible="ALLOEU BASKET CLUB"):
           "lf": 0,
           "fautes": 0
         }}
+      ],
+      "officiels_table": [
+        "Nom Prénom"
       ]
     }}
     """
@@ -205,6 +299,14 @@ def update_event_stats(event, pdf_path):
 
     st.success("Analyse PDF terminée !")
     st.json(stats_data['match_info'])
+    
+    # Mise à jour du comptage des officiels de table
+    if 'officiels_table' in stats_data and stats_data['officiels_table']:
+        st.divider()
+        st.subheader("📋 Officiels de table détectés")
+        for officiel in stats_data['officiels_table']:
+            st.write(f"• {officiel}")
+        update_google_sheet(stats_data['officiels_table'])
 
     team_id = event['opponent_right']['id'] if event['opponent_right']['is_current_team'] else event['opponent_left']['id']
     event_id = event['id']
