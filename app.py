@@ -499,47 +499,148 @@ if 'matchs' in st.session_state and st.session_state['matchs']:
     selected_match_label = st.selectbox("Sélectionner un match", [m['label'] for m in st.session_state['matchs']])
     selected_match = next(m['data'] for m in st.session_state['matchs'] if m['label'] == selected_match_label)
     
+    # --- SECTION 1 : MISE À JOUR SCORES & STATS ---
     st.write("---")
-    st.subheader("Mise à jour via PDF")
+    st.subheader("📊 Section 1 : Scores & Statistiques des joueurs")
     
-    st.info("📄 Il faut fournir 2 documents PDF distincts :")
-    col1, col2 = st.columns(2)
+    resume_file = st.file_uploader(
+        "📄 Résumé de match (PDF)", 
+        type="pdf", 
+        key="resume",
+        help="Upload le résumé contenant les scores et stats des joueurs"
+    )
     
-    with col1:
-        st.markdown("**1️⃣ Résumé de match**")
-        st.caption("Contient les scores et statistiques des joueurs")
-        resume_file = st.file_uploader("📊 Résumé de match (PDF)", type="pdf", key="resume")
-    
-    with col2:
-        st.markdown("**2️⃣ Feuille de match officielle**")
-        st.caption("Contient les officiels de table (page 2)")
-        feuille_file = st.file_uploader("📋 Feuille de match (PDF)", type="pdf", key="feuille")
-    
-    if resume_file is not None and feuille_file is not None and api_key:
-        if st.button("🚀 Lancer l'analyse et la mise à jour"):
-            # Sauvegarde temporaire des fichiers pour Gemini
+    if resume_file is not None and api_key:
+        if st.button("⚡ Mettre à jour les scores et stats", key="btn_scores"):
             with tempfile.NamedTemporaryFile(delete=False, suffix="_resume.pdf") as tmp_resume:
                 tmp_resume.write(resume_file.getvalue())
                 resume_path = tmp_resume.name
             
+            try:
+                club_name = "ALLOEU BASKET CLUB"
+                stats_data = analyser_match_basket(resume_path, club_name)
+                
+                if stats_data:
+                    st.success("✅ Analyse du résumé de match terminée !")
+                    st.json(stats_data['match_info'])
+                    
+                    team_id = selected_match['opponent_right']['id'] if selected_match['opponent_right']['is_current_team'] else selected_match['opponent_left']['id']
+                    event_id = selected_match['id']
+                    
+                    # Mise à jour joueurs
+                    url_players = f"https://api.sporteasy.net/v2.1/teams/{team_id}/events/{event_id}/stats/players/"
+                    resp_players = requests.get(url_players, headers=HEADERS)
+                    
+                    if resp_players.status_code == 200:
+                        se_players = resp_players.json()['players']
+                        player_mapping = match_players(stats_data['stats_club_cible'], se_players)
+                        
+                        payload_players = {}
+                        for pid, g_stats in player_mapping.items():
+                            payload_players[pid] = {
+                                "basket_player_free_throws": g_stats['lf'],
+                                "basket_player_two_point_goals": g_stats['2_pts_total'],
+                                "basket_player_three_point_goals": g_stats['3_pts'],
+                                "basket_player_assists": 0,
+                                "basket_player_rebounds": 0,
+                                "basket_player_blocks": 0,
+                                "basket_player_steals": 0,
+                                "basket_player_fouls": g_stats['fautes'],
+                                "playing_time": convert_time(g_stats['tps_jeu'])
+                            }
+                        
+                        if payload_players:
+                            resp_put_players = requests.put(url_players, headers=HEADERS, json=payload_players)
+                            if resp_put_players.status_code == 200:
+                                st.success(f"✅ Stats de {len(payload_players)} joueurs mises à jour !")
+                            else:
+                                st.error(f"❌ Erreur mise à jour joueurs: {resp_put_players.status_code}")
+                    
+                    # Mise à jour scores
+                    url_opponents = f"https://api.sporteasy.net/v2.1/teams/{team_id}/events/{event_id}/stats/opponents/"
+                    resp_opponents = requests.get(url_opponents, headers=HEADERS)
+                    
+                    if resp_opponents.status_code == 200:
+                        opponents_data = resp_opponents.json()
+                        
+                        score_A = stats_data['match_info']['score_A_final']
+                        score_B = stats_data['match_info']['score_B_final']
+                        mitemps_A = stats_data['match_info'].get('score_A_mitemps', [0, 0])
+                        mitemps_B = stats_data['match_info'].get('score_B_mitemps', [0, 0])
+                        
+                        is_left_home = opponents_data['opponent_left']['is_home']
+                        
+                        if is_left_home:
+                            score_left = score_A
+                            score_right = score_B
+                            quarters_left = [mitemps_A[0], mitemps_A[1], 0, 0]
+                            quarters_right = [mitemps_B[0], mitemps_B[1], 0, 0]
+                        else:
+                            score_left = score_B
+                            score_right = score_A
+                            quarters_left = [mitemps_B[0], mitemps_B[1], 0, 0]
+                            quarters_right = [mitemps_A[0], mitemps_A[1], 0, 0]
+
+                        payload_opponents = {
+                            "left": {
+                                "score": str(score_left),
+                                "basket_period_one": str(quarters_left[0]),
+                                "basket_period_two": str(quarters_left[1]),
+                                "basket_period_three": str(quarters_left[2]),
+                                "basket_period_four": str(quarters_left[3]),
+                                "withdrawal": False
+                            },
+                            "right": {
+                                "score": str(score_right),
+                                "basket_period_one": str(quarters_right[0]),
+                                "basket_period_two": str(quarters_right[1]),
+                                "basket_period_three": str(quarters_right[2]),
+                                "basket_period_four": str(quarters_right[3]),
+                                "withdrawal": False
+                            }
+                        }
+                        
+                        resp_put_opponents = requests.put(url_opponents, headers=HEADERS, json=payload_opponents)
+                        if resp_put_opponents.status_code == 200:
+                            st.success("✅ Score et quarts-temps mis à jour !")
+                        else:
+                            st.error(f"❌ Erreur mise à jour score: {resp_put_opponents.status_code}")
+                    
+                    # Lien forum
+                    st.divider()
+                    team_slug = selected_match.get('team_slug', 'alloeu-basket-club-u11')
+                    event_id = selected_match['id']
+                    forum_url = get_forum_url(event_id, team_slug)
+                    st.markdown(f"### [🔗 Accéder au forum du match]({forum_url})", unsafe_allow_html=True)
+                    
+            finally:
+                os.remove(resume_path)
+    
+    # --- SECTION 2 : MISE À JOUR OFFICIELS DE TABLE ---
+    st.write("---")
+    st.subheader("📋 Section 2 : Officiels de table")
+    
+    feuille_file = st.file_uploader(
+        "📄 Feuille de match officielle (PDF)", 
+        type="pdf", 
+        key="feuille",
+        help="Upload la feuille de match avec les officiels (page 2)"
+    )
+    
+    if feuille_file is not None and api_key:
+        if st.button("⚡ Mettre à jour le comptage de table", key="btn_table"):
             with tempfile.NamedTemporaryFile(delete=False, suffix="_feuille.pdf") as tmp_feuille:
                 tmp_feuille.write(feuille_file.getvalue())
                 feuille_path = tmp_feuille.name
             
             try:
-                update_event_stats(selected_match, resume_path, feuille_path)
-                # Affiche le bouton forum après succès
-                st.divider()
-                st.subheader("Accéder au forum")
-                
-                # Récupère le slug de l'équipe (exemple: 'alloeu-basket-club-u11')
-                team_slug = selected_match.get('team_slug', 'alloeu-basket-club-u11')
-                event_id = selected_match['id']
-                forum_url = get_forum_url(event_id, team_slug)
-                
-                st.markdown(f"### [🔗 Accéder au forum du match]({forum_url})", unsafe_allow_html=True)
-                st.info(f"Forum: {forum_url}")
+                officiels_data = analyser_feuille_match(feuille_path)
+                if officiels_data and 'officiels_table' in officiels_data and officiels_data['officiels_table']:
+                    st.subheader("📋 Officiels de table détectés")
+                    for officiel in officiels_data['officiels_table']:
+                        st.write(f"• {officiel}")
+                    update_google_sheet(officiels_data['officiels_table'])
+                else:
+                    st.warning("⚠️ Aucun officiel de table détecté dans la feuille de match")
             finally:
-                # Nettoyage des fichiers temporaires
-                os.remove(resume_path)
                 os.remove(feuille_path)
