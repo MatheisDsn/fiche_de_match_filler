@@ -43,13 +43,13 @@ if "gcp_service_account" in st.secrets:
 # --- HEADERS & COOKIES ---
 # Initialiser le cookie sporteasy dans session_state s'il n'existe pas
 if 'sporteasy_cookie_value' not in st.session_state:
-    st.session_state['sporteasy_cookie_value'] = "a4lgdp0ogd6elkscw9wxguhmd86fekdt"
+    st.session_state['sporteasy_cookie_value'] = "gl53blz0iqxbxhjho0vzz2wzzluf1eir"
 
 # Champ pour saisir uniquement la valeur du cookie sporteasy
 sporteasy_value = st.sidebar.text_input(
     "Cookie SportEasy",
     value=st.session_state['sporteasy_cookie_value'],
-    help="Entrez uniquement la valeur du cookie sporteasy (ex: a4lgdp0ogd6elkscw9wxguhmd86fekdt)"
+    help="Entrez uniquement la valeur du cookie sporteasy (ex: gl53blz0iqxbxhjho0vzz2wzzluf1eir)"
 )
 
 # Sauvegarder la valeur actuelle dans session_state
