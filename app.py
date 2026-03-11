@@ -41,7 +41,7 @@ if "gcp_service_account" in st.secrets:
 
 # --- HEADERS & COOKIES ---
 if 'sporteasy_cookie_value' not in st.session_state:
-    st.session_state['sporteasy_cookie_value'] = "rv4lnoutsd6vl9i73ppxrxcnaq32tzvo"
+    st.session_state['sporteasy_cookie_value'] = "gl53blz0iqxbxhjho0vzz2wzzluf1eir"
 
 sporteasy_value = st.sidebar.text_input(
     "Cookie SportEasy",
@@ -219,11 +219,12 @@ def analyser_feuille_match(chemin_fichier):
     
     Tâche : Extraction des officiels de table
     - En bas de la page 2, cherche l'encadré contenant les officiels de table
-    - Extrais TOUS les noms et leur Numéro de licence pour ces rôles (certaines cases peuvent être vides) :
+    - Extrais TOUS les noms et leur Numéro de licence UNIQUEMENT pour ces rôles (certaines cases peuvent être vides) :
       - Marqueur
       - Chronométreur
       - Chronométreur des tirs (ou "Chrono Tirs" ou "24 secondes" ou "Opérateur 24 sec")
       - Aide Marqueur
+    - Pour les rôles "1er arbitre", "2ème arbitre", "3ème arbitre", "délégué aux officiels", "délégué médical", "commissaire" n'extrais surtout pas les données.
     - Si un rôle est vide, ne l'inclus pas dans la liste.
 
     Format de réponse attendu :
