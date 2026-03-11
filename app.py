@@ -215,17 +215,18 @@ def analyser_feuille_match(chemin_fichier):
     prompt = """
     Tu es un assistant expert en statistiques de basket. Analyse ce document qui contient la feuille de match officielle.
     
-    IMPORTANT : Focus UNIQUEMENT sur la PAGE 2 du document.
+    IMPORTANT : Focus UNIQUEMENT sur la PAGE 2 du document, dans le tableau "OFFICIELS, RESPONSABLES DE L'ORGANISATION ET DÉLÉGUÉS AUX OFFICIELS".
     
-    Tâche : Extraction des officiels de table
-    - En bas de la page 2, cherche l'encadré contenant les officiels de table
-    - Extrais TOUS les noms et leur Numéro de licence UNIQUEMENT pour ces rôles (certaines cases peuvent être vides) :
-      - Marqueur
-      - Chronométreur
-      - Chronométreur des tirs (ou "Chrono Tirs" ou "24 secondes" ou "Opérateur 24 sec")
-      - Aide Marqueur
-    - Pour les rôles "1er arbitre", "2ème arbitre", "3ème arbitre", "délégué de club", "délégué aux officiels", "délégué médical", "commissaire" n'extrais surtout pas les données.
-    - Si un rôle est vide, ne l'inclus pas dans la liste.
+    Tâche : Extraction STRICTE des officiels de table.
+    - Lis la première colonne de gauche pour identifier le rôle.
+    - Si et SEULEMENT SI le rôle est EXACTEMENT l'un de ces quatre :
+      1. Marqueur
+      2. Aide-marqueur
+      3. Chronométreur
+      4. Chronométreur des tirs (ou équivalent 24 sec)
+    - ALORS extrais le Nom et le N° de Licence sur la même ligne.
+    - Ignore absolument toutes les autres lignes qui n'ont pas ces quatre rôles exacts.
+    - Si la ligne d'un de ces quatre rôles est vide, ne l'inclus pas.
 
     Format de réponse attendu :
     Réponds UNIQUEMENT avec un objet JSON valide (sans Markdown ```json) suivant cette structure :
