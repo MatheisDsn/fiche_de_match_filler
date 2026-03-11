@@ -46,7 +46,7 @@ if 'sporteasy_cookie_value' not in st.session_state:
 sporteasy_value = st.sidebar.text_input(
     "Cookie SportEasy",
     value=st.session_state['sporteasy_cookie_value'],
-    help="Entrez uniquement la valeur du cookie sporteasy (ex: gl53blz0iqxbxhjho0vzz2wzzluf1eir)"
+    help="Entrez uniquement la valeur du cookie sporteasy (ex: rv4lnoutsd6vl9i73ppxrxcnaq32tzvo)"
 )
 
 st.session_state['sporteasy_cookie_value'] = sporteasy_value
@@ -224,7 +224,7 @@ def analyser_feuille_match(chemin_fichier):
       - Chronométreur
       - Chronométreur des tirs (ou "Chrono Tirs" ou "24 secondes" ou "Opérateur 24 sec")
       - Aide Marqueur
-    - Pour les rôles "1er arbitre", "2ème arbitre", "3ème arbitre", "délégué aux officiels", "délégué médical", "commissaire" n'extrais surtout pas les données.
+    - Pour les rôles "1er arbitre", "2ème arbitre", "3ème arbitre", "délégué de club", "délégué aux officiels", "délégué médical", "commissaire" n'extrais surtout pas les données.
     - Si un rôle est vide, ne l'inclus pas dans la liste.
 
     Format de réponse attendu :
