@@ -217,16 +217,27 @@ def analyser_feuille_match(chemin_fichier):
     
     IMPORTANT : Focus UNIQUEMENT sur la PAGE 2 du document, dans le tableau "OFFICIELS, RESPONSABLES DE L'ORGANISATION ET DÉLÉGUÉS AUX OFFICIELS".
     
-    Tâche : Extraction STRICTE des officiels de table.
-    - Lis la première colonne de gauche pour identifier le rôle.
-    - Si et SEULEMENT SI le rôle est EXACTEMENT l'un de ces quatre :
+    Tâche : Extraction STRICTE des officiels de table UNIQUEMENT.
+    
+    RÈGLE ABSOLUE - N'extrais QUE ces 4 rôles PRÉCIS :
       1. Marqueur
       2. Aide-marqueur
       3. Chronométreur
-      4. Chronométreur des tirs (ou équivalent 24 sec)
-    - ALORS extrais le Nom et le N° de Licence sur la même ligne.
-    - Ignore absolument toutes les autres lignes qui n'ont pas ces quatre rôles exacts.
-    - Si la ligne d'un de ces quatre rôles est vide, ne l'inclus pas.
+      4. Chronométreur des tirs (ou 24 secondes)
+    
+    ⛔ IGNORE COMPLÈTEMENT ces rôles (même s'ils sont dans le tableau) :
+      - Délégué de club
+      - Délégué aux officiels
+      - Responsable de l'organisation
+      - Commissaire
+      - Arbitre
+      - Tout autre rôle qui n'est PAS dans la liste des 4 ci-dessus
+    
+    Instructions :
+    - Lis la première colonne de gauche pour identifier le rôle.
+    - Si le rôle est EXACTEMENT l'un des 4 autorisés, extrais le Nom et le N° de Licence.
+    - Si la ligne est vide ou le rôle ne correspond pas exactement, ne l'inclus PAS.
+    - Le JSON final ne doit contenir QUE des officiels de table (les 4 rôles listés).
 
     Format de réponse attendu :
     Réponds UNIQUEMENT avec un objet JSON valide (sans Markdown ```json) suivant cette structure :
