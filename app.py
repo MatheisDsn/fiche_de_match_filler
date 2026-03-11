@@ -19,7 +19,6 @@ if "GOOGLE_API_KEY" in st.secrets:
     api_key = st.secrets["GOOGLE_API_KEY"]
     os.environ["GOOGLE_API_KEY"] = api_key
     genai.configure(api_key=api_key)
-    # Utilisation de gemini-1.5-flash qui est plus rapide et a souvent de meilleurs quotas gratuits
     model = genai.GenerativeModel('gemini-2.5-flash')
 else:
     st.error("⚠️ Clé API Google Gemini manquante dans st.secrets")
@@ -41,21 +40,17 @@ if "gcp_service_account" in st.secrets:
         st.sidebar.error(f"⚠️ Erreur connexion Google Sheets: {e}")
 
 # --- HEADERS & COOKIES ---
-# Initialiser le cookie sporteasy dans session_state s'il n'existe pas
 if 'sporteasy_cookie_value' not in st.session_state:
     st.session_state['sporteasy_cookie_value'] = "rv4lnoutsd6vl9i73ppxrxcnaq32tzvo"
 
-# Champ pour saisir uniquement la valeur du cookie sporteasy
 sporteasy_value = st.sidebar.text_input(
     "Cookie SportEasy",
     value=st.session_state['sporteasy_cookie_value'],
-    help="Entrez uniquement la valeur du cookie sporteasy (ex: ivpl1kuluti325kn08jneazdgns27use)"
+    help="Entrez uniquement la valeur du cookie sporteasy (ex: gl53blz0iqxbxhjho0vzz2wzzluf1eir)"
 )
 
-# Sauvegarder la valeur actuelle dans session_state
 st.session_state['sporteasy_cookie_value'] = sporteasy_value
 
-# Construire la chaîne complète des cookies
 user_cookies = (
     "se_csrftoken=67meREjj8e05BzDVEN2Nrq32w45hrPZk; "
     "se_referer=\"https://www.google.com/\"; "
@@ -68,9 +63,7 @@ user_cookies = (
     "_ga_N6SPHF8K4P=GS2.1.s1765617477$o1$g1$t1765617725$j42$l0$h856859297"
 )
 
-# Extraire le CSRF token des cookies
 def extract_csrf_token(cookie_string):
-    """Extrait le token CSRF depuis la chaîne de cookies"""
     import re
     match = re.search(r'se_csrftoken=([^;]+)', cookie_string)
     if match:
@@ -88,14 +81,12 @@ HEADERS = {
     "Cookie": user_cookies
 }
 
-# Afficher un avertissement si le CSRF token est manquant
 if not csrf_token:
     st.sidebar.warning("⚠️ CSRF token manquant ! Les modifications (PUT) échoueront. Ajoutez 'se_csrftoken=...' au début des cookies.")
 
 # --- FONCTIONS UTILITAIRES ---
 
 def get_forum_url(event_id, team_slug):
-    """Construit l'URL du forum du match"""
     return f"https://{team_slug}.sporteasy.net/event/{event_id}/forum/"
 
 def convert_time(time_str):
@@ -111,13 +102,13 @@ def convert_time(time_str):
     except:
         return 0
 
-def update_google_sheet(noms_officiels):
-    """Met à jour le Google Sheet avec les officiels de table"""
+def update_google_sheet(officiels):
+    """Met à jour le Google Sheet en utilisant le numéro de licence"""
     if not gsheet_client:
         st.warning("⚠️ Connexion Google Sheets non configurée")
         return
     
-    if not noms_officiels:
+    if not officiels:
         st.info("ℹ️ Aucun officiel de table détecté")
         return
     
@@ -133,37 +124,50 @@ def update_google_sheet(noms_officiels):
         spreadsheet = gsheet_client.open_by_key(sheet_id)
         worksheet = spreadsheet.worksheet(sheet_name)
         
-        # Récupérer toutes les données (colonne A = noms, colonne B = compteurs)
+        # Récupérer toutes les données (A = noms, B = licences, C = compteurs)
         all_data = worksheet.get_all_values()
         
-        # Créer un dictionnaire des noms existants {nom: ligne}
+        # Créer un dictionnaire des licences existantes {licence: ligne}
         existing_data = {}
         if len(all_data) > 1:  # Si plus que l'en-tête
             for idx, row in enumerate(all_data[1:], start=2):  # Start à 2 car ligne 1 = header
-                if len(row) >= 2 and row[0]:  # Si nom existe
-                    existing_data[row[0].strip().lower()] = {
+                if len(row) >= 2 and row[1]:  # Si la colonne licence (B) n'est pas vide
+                    licence = row[1].strip().upper()
+                    count = int(row[2]) if len(row) > 2 and row[2].isdigit() else 0
+                    existing_data[licence] = {
                         'row': idx,
-                        'count': int(row[1]) if row[1].isdigit() else 0
+                        'count': count,
+                        'nom': row[0]
                     }
         
         # Mettre à jour ou ajouter chaque officiel
         updates = []
-        for nom in noms_officiels:
-            nom_clean = nom.strip()
-            nom_lower = nom_clean.lower()
+        for officiel in officiels:
+            nom_clean = officiel.get('nom', '').strip()
+            licence_clean = officiel.get('licence', '').strip().upper()
             
-            if nom_lower in existing_data:
-                # Incrémenter
-                row_num = existing_data[nom_lower]['row']
-                new_count = existing_data[nom_lower]['count'] + 1
-                worksheet.update_cell(row_num, 2, new_count)
-                updates.append(f"✅ {nom_clean}: {existing_data[nom_lower]['count']} → {new_count}")
+            if not licence_clean:
+                st.warning(f"⚠️ Licence introuvable pour {nom_clean}, ignoré.")
+                continue
+            
+            if licence_clean in existing_data:
+                # Incrémenter (Colonne 3 = Nb fois)
+                row_num = existing_data[licence_clean]['row']
+                new_count = existing_data[licence_clean]['count'] + 1
+                worksheet.update_cell(row_num, 3, new_count)
+                updates.append(f"✅ {nom_clean} ({licence_clean}): {existing_data[licence_clean]['count']} → {new_count}")
             else:
                 # Ajouter nouvelle ligne
                 next_row = len(all_data) + 1
                 worksheet.update_cell(next_row, 1, nom_clean)
-                worksheet.update_cell(next_row, 2, 1)
-                updates.append(f"✨ {nom_clean}: Nouveau (1)")
+                worksheet.update_cell(next_row, 2, licence_clean)
+                worksheet.update_cell(next_row, 3, 1)
+                
+                # Mettre à jour all_data et existing_data virtuellement pour les doublons dans le même match
+                all_data.append([nom_clean, licence_clean, "1"])
+                existing_data[licence_clean] = {'row': next_row, 'count': 1, 'nom': nom_clean}
+                
+                updates.append(f"✨ {nom_clean} ({licence_clean}): Nouveau (1)")
         
         if updates:
             st.success(f"📊 Google Sheet mis à jour ({len(updates)} officiels)")
@@ -187,31 +191,27 @@ def match_players(gemini_stats, se_players):
             full_name = f"{profile['last_name']} {profile['first_name']}".lower()
             full_name_rev = f"{profile['first_name']} {profile['last_name']}".lower()
             
-            # Simple containment check first
             if profile['last_name'].lower() in g_name and profile['first_name'].lower() in g_name:
                 best_match = se_player
                 best_score = 100
                 break
             
-            # Fuzzy match
             score1 = difflib.SequenceMatcher(None, g_name, full_name).ratio()
             score2 = difflib.SequenceMatcher(None, g_name, full_name_rev).ratio()
             score = max(score1, score2)
             
-            if score > best_score and score > 0.6: # Threshold
+            if score > best_score and score > 0.6: 
                 best_score = score
                 best_match = se_player
         
         if best_match:
             mapping[str(best_match['profile']['id'])] = g_player
-            # st.write(f"✅ Match: {g_player['joueur']} -> {best_match['profile']['full_name']}")
         else:
             st.warning(f"⚠️ Pas de correspondance pour: {g_player['joueur']}")
             
     return mapping
 
 def analyser_feuille_match(chemin_fichier):
-    """Analyse la feuille de match officielle pour extraire les officiels de table (page 2)"""
     prompt = """
     Tu es un assistant expert en statistiques de basket. Analyse ce document qui contient la feuille de match officielle.
     
@@ -219,27 +219,28 @@ def analyser_feuille_match(chemin_fichier):
     
     Tâche : Extraction des officiels de table
     - En bas de la page 2, cherche l'encadré contenant les officiels de table
-    - Extrais TOUS les noms pour ces rôles (certaines cases peuvent être vides) :
+    - Extrais TOUS les noms et leur Numéro de licence pour ces rôles (certaines cases peuvent être vides) :
       - Marqueur
       - Chronométreur
       - Chronométreur des tirs (ou "Chrono Tirs" ou "24 secondes" ou "Opérateur 24 sec")
       - Aide Marqueur
-    - Si un rôle est vide, ne l'inclus pas dans la liste
-    - Extrais UNIQUEMENT les noms (Nom Prénom), pas les rôles
+    - Si un rôle est vide, ne l'inclus pas dans la liste.
 
     Format de réponse attendu :
     Réponds UNIQUEMENT avec un objet JSON valide (sans Markdown ```json) suivant cette structure :
-    {{
+    {
       "officiels_table": [
-        "Nom Prénom",
-        "Autre Nom"
+        {
+          "nom": "Nom Prénom",
+          "licence": "BC123456"
+        }
       ]
-    }}
+    }
     """
     
     mon_fichier = genai.upload_file(chemin_fichier, mime_type="application/pdf")
     
-    with st.spinner("📋 Analyse de la feuille de match (officiels de table)..."):
+    with st.spinner("📋 Analyse de la feuille de match (officiels de table + licences)..."):
         try:
             response = model.generate_content([mon_fichier, prompt])
         except exceptions.ResourceExhausted:
@@ -259,7 +260,6 @@ def analyser_feuille_match(chemin_fichier):
         return None
 
 def analyser_match_basket(chemin_fichier, nom_club_cible="ALLOEU BASKET CLUB"):
-    """Analyse le résumé de match pour extraire les scores et statistiques des joueurs"""
     prompt = f"""
     Tu es un assistant expert en statistiques de basket. Analyse ce document qui contient le résumé de match.
     
@@ -330,7 +330,6 @@ def analyser_match_basket(chemin_fichier, nom_club_cible="ALLOEU BASKET CLUB"):
 def update_event_stats(event, resume_path, feuille_path):
     club_name = "ALLOEU BASKET CLUB" 
     
-    # Analyse du résumé de match (scores + stats joueurs)
     stats_data = analyser_match_basket(resume_path, club_name)
     if not stats_data:
         return
@@ -338,13 +337,14 @@ def update_event_stats(event, resume_path, feuille_path):
     st.success("✅ Analyse du résumé de match terminée !")
     st.json(stats_data['match_info'])
     
-    # Analyse de la feuille de match (officiels de table)
     officiels_data = analyser_feuille_match(feuille_path)
     if officiels_data and 'officiels_table' in officiels_data and officiels_data['officiels_table']:
         st.divider()
         st.subheader("📋 Officiels de table détectés")
         for officiel in officiels_data['officiels_table']:
-            st.write(f"• {officiel}")
+            nom = officiel.get('nom', 'Inconnu')
+            licence = officiel.get('licence', 'Sans licence')
+            st.write(f"• {nom} (Licence: {licence})")
         update_google_sheet(officiels_data['officiels_table'])
     else:
         st.warning("⚠️ Aucun officiel de table détecté dans la feuille de match")
@@ -437,19 +437,15 @@ def update_event_stats(event, resume_path, feuille_path):
 
 st.title("🏀 Gestion Matchs SportEasy")
 
-# Initialiser session_state si nécessaire
 if 'matchs' not in st.session_state:
     st.session_state['matchs'] = []
 
-# Obtenir le mois et l'année actuels
 current_date = datetime.now()
 current_month = current_date.month
 current_year = current_date.year
 
-# Checkbox pour le filtre des 5 jours
 filter_5_days = st.checkbox("Afficher uniquement les matchs de moins de 5 jours", value=True)
 
-# Afficher les sélecteurs de mois/année uniquement si le filtre n'est pas actif
 if not filter_5_days:
     col1, col2 = st.columns(2)
     with col1:
@@ -457,7 +453,6 @@ if not filter_5_days:
     with col2:
         year = st.number_input("Année", min_value=2024, max_value=2030, value=current_year)
 else:
-    # Valeurs par défaut si le filtre est actif
     month = current_month
     year = current_year
 
@@ -474,10 +469,8 @@ if st.button("Charger les matchs"):
         for event in results:
             if event["type"]['id'] == 7 and event["team_name"] != "ARBITRES" or event["type"]['id'] == 5 or event["type"]['id'] == 4 :
                 dt = datetime.fromisoformat(event["start_at"])
-                # Retire le fuseau horaire pour la comparaison
                 dt_naive = dt.replace(tzinfo=None) if dt.tzinfo else dt
                 
-                # Appliquer le filtre des 5 jours seulement si la checkbox est cochée
                 if filter_5_days:
                     if dt_naive >= five_days_ago:
                         label = f"{dt.strftime('%d/%m')} - {event['team_name']} : {event['opponent_left']['full_name']} VS {event['opponent_right']['full_name']}"
@@ -638,7 +631,11 @@ if 'matchs' in st.session_state and st.session_state['matchs']:
                 if officiels_data and 'officiels_table' in officiels_data and officiels_data['officiels_table']:
                     st.subheader("📋 Officiels de table détectés")
                     for officiel in officiels_data['officiels_table']:
-                        st.write(f"• {officiel}")
+                        # On affiche désormais le nom et la licence extraits par Gemini
+                        nom = officiel.get('nom', 'Inconnu')
+                        licence = officiel.get('licence', 'Sans licence')
+                        st.write(f"• {nom} (Licence: {licence})")
+                        
                     update_google_sheet(officiels_data['officiels_table'])
                 else:
                     st.warning("⚠️ Aucun officiel de table détecté dans la feuille de match")
