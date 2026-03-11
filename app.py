@@ -41,7 +41,7 @@ if "gcp_service_account" in st.secrets:
 
 # --- HEADERS & COOKIES ---
 if 'sporteasy_cookie_value' not in st.session_state:
-    st.session_state['sporteasy_cookie_value'] = "gl53blz0iqxbxhjho0vzz2wzzluf1eir"
+    st.session_state['sporteasy_cookie_value'] = "rv4lnoutsd6vl9i73ppxrxcnaq32tzvo"
 
 sporteasy_value = st.sidebar.text_input(
     "Cookie SportEasy",
