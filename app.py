@@ -41,7 +41,7 @@ if "gcp_service_account" in st.secrets:
 
 # --- HEADERS & COOKIES ---
 if 'sporteasy_cookie_value' not in st.session_state:
-    st.session_state['sporteasy_cookie_value'] = "rv4lnoutsd6vl9i73ppxrxcnaq32tzvo"
+    st.session_state['sporteasy_cookie_value'] = "boid0ha2sw59ypmuitklrcu1ifpuil3o"
 
 sporteasy_value = st.sidebar.text_input(
     "Cookie SportEasy",
@@ -235,7 +235,7 @@ def analyser_feuille_match(chemin_fichier):
     
     Instructions :
     - Lis la première colonne de gauche pour identifier le rôle.
-    - Si le rôle est EXACTEMENT l'un des 4 autorisés, extrais le Nom et le N° de Licence.
+    - Si le rôle est EXACTEMENT l'un des 4 autorisés, extrais le Nom, le N° de Licence et le Rôle.
     - Si la ligne est vide ou le rôle ne correspond pas exactement, ne l'inclus PAS.
     - Le JSON final ne doit contenir QUE des officiels de table (les 4 rôles listés).
 
@@ -245,7 +245,8 @@ def analyser_feuille_match(chemin_fichier):
       "officiels_table": [
         {
           "nom": "Nom Prénom",
-          "licence": "BC123456"
+          "licence": "BC123456",
+          "role": "Marqueur"
         }
       ]
     }
@@ -621,36 +622,56 @@ if 'matchs' in st.session_state and st.session_state['matchs']:
                     
             finally:
                 os.remove(resume_path)
+
+# --- SECTION 2 : MISE À JOUR OFFICIELS DE TABLE ---
+st.write("---")
+st.subheader("📋 Section 2 : Officiels de table (Indépendante)")
+
+feuille_file = st.file_uploader(
+    "📄 Feuille de match officielle (PDF)", 
+    type="pdf", 
+    key="feuille",
+    help="Upload la feuille de match avec les officiels (page 2)"
+)
+
+# Initialisation de l'état pour les officiels extraits
+if 'officiels_extraits' not in st.session_state:
+    st.session_state['officiels_extraits'] = None
+
+if feuille_file is not None and api_key:
+    if st.button("🔍 Extraire les officiels", key="btn_extraire_table"):
+        with tempfile.NamedTemporaryFile(delete=False, suffix="_feuille.pdf") as tmp_feuille:
+            tmp_feuille.write(feuille_file.getvalue())
+            feuille_path = tmp_feuille.name
+        
+        try:
+            officiels_data = analyser_feuille_match(feuille_path)
+            if officiels_data and 'officiels_table' in officiels_data and officiels_data['officiels_table']:
+                st.session_state['officiels_extraits'] = officiels_data['officiels_table']
+            else:
+                st.session_state['officiels_extraits'] = []
+                st.warning("⚠️ Aucun officiel de table détecté dans la feuille de match")
+        finally:
+            os.remove(feuille_path)
+
+if st.session_state['officiels_extraits']:
+    st.subheader("📋 Officiels de table détectés")
     
-    # --- SECTION 2 : MISE À JOUR OFFICIELS DE TABLE ---
-    st.write("---")
-    st.subheader("📋 Section 2 : Officiels de table")
+    officiels_a_ajouter = []
     
-    feuille_file = st.file_uploader(
-        "📄 Feuille de match officielle (PDF)", 
-        type="pdf", 
-        key="feuille",
-        help="Upload la feuille de match avec les officiels (page 2)"
-    )
-    
-    if feuille_file is not None and api_key:
-        if st.button("⚡ Mettre à jour le comptage de table", key="btn_table"):
-            with tempfile.NamedTemporaryFile(delete=False, suffix="_feuille.pdf") as tmp_feuille:
-                tmp_feuille.write(feuille_file.getvalue())
-                feuille_path = tmp_feuille.name
+    for i, officiel in enumerate(st.session_state['officiels_extraits']):
+        nom = officiel.get('nom', 'Inconnu')
+        licence = officiel.get('licence', 'Sans licence')
+        role = officiel.get('role', 'Rôle non précisé')
+        
+        # Ajout d'une checkbox pour chaque officiel
+        if st.checkbox(f"Ajouter {nom} - Rôle: {role} (Licence: {licence})", value=True, key=f"officiel_{i}"):
+            officiels_a_ajouter.append(officiel)
             
-            try:
-                officiels_data = analyser_feuille_match(feuille_path)
-                if officiels_data and 'officiels_table' in officiels_data and officiels_data['officiels_table']:
-                    st.subheader("📋 Officiels de table détectés")
-                    for officiel in officiels_data['officiels_table']:
-                        # On affiche désormais le nom et la licence extraits par Gemini
-                        nom = officiel.get('nom', 'Inconnu')
-                        licence = officiel.get('licence', 'Sans licence')
-                        st.write(f"• {nom} (Licence: {licence})")
-                        
-                    update_google_sheet(officiels_data['officiels_table'])
-                else:
-                    st.warning("⚠️ Aucun officiel de table détecté dans la feuille de match")
-            finally:
-                os.remove(feuille_path)
+    if st.button("⚡ Ajouter au Google Sheet", key="btn_table_add"):
+        if officiels_a_ajouter:
+            update_google_sheet(officiels_a_ajouter)
+            # Réinitialiser après ajout si on veut, ou laisser visible
+            # st.session_state['officiels_extraits'] = None
+        else:
+            st.warning("Veuillez sélectionner au moins un officiel.")
