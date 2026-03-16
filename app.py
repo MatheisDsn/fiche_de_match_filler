@@ -219,11 +219,11 @@ def analyser_feuille_match(chemin_fichier):
     
     Tâche : Extraction STRICTE des officiels de table UNIQUEMENT.
     
-    RÈGLE ABSOLUE - N'extrais QUE ces 4 rôles PRÉCIS :
+    RÈGLE ABSOLUE - N'extrais QUE ces 4 rôles PRÉCIS, si ces roles sont barré, ignore les complètement :
       1. Marqueur
       2. Aide-marqueur
       3. Chronométreur
-      4. Chronométreur des tirs (ou 24 secondes)
+      4. Chronométreur des tirs (ou 24 secondes) 
     
     ⛔ IGNORE COMPLÈTEMENT ces rôles (même s'ils sont dans le tableau) :
       - Délégué de club
