@@ -41,18 +41,18 @@ if "gcp_service_account" in st.secrets:
 
 # --- HEADERS & COOKIES ---
 if 'sporteasy_cookie_value' not in st.session_state:
-    st.session_state['sporteasy_cookie_value'] = "9pr7g02w9h0gv88x34u8x7vy54x5d5f4"
+    st.session_state['sporteasy_cookie_value'] = "vsnxw4dz4tpib2niy4eljtica70dmv3d"
 
 sporteasy_value = st.sidebar.text_input(
     "Cookie SportEasy",
     value=st.session_state['sporteasy_cookie_value'],
-    help="Entrez uniquement la valeur du cookie sporteasy (ex: 0mtj9dughwlk7amw9kd7w8p6s0371n40)"
+    help="Entrez uniquement la valeur du cookie sporteasy (ex: vsnxw4dz4tpib2niy4eljtica70dmv3d)"
 )
 
 st.session_state['sporteasy_cookie_value'] = sporteasy_value
 
 user_cookies = (
-    "se_csrftoken=6dyP8qRT1224XKa2oEjKaK6wlHo4u1TL; "
+    "se_csrftoken=67meREjj8e05BzDVEN2Nrq32w45hrPZk; "
     "se_referer=\"https://www.google.com/\"; "
     "se_first_url=https%3A%2F%2Fwww.sporteasy.net%2Ffr%2F; "
     "se_last_url=\"/fr/profile/teams/\"; "
