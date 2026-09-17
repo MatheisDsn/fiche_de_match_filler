@@ -52,7 +52,7 @@ sporteasy_value = st.sidebar.text_input(
 st.session_state['sporteasy_cookie_value'] = sporteasy_value
 
 user_cookies = (
-    "se_csrftoken=67meREjj8e05BzDVEN2Nrq32w45hrPZk; "
+    "se_csrftoken=6dyP8qRT1224XKa2oEjKaK6wlHo4u1TL; "
     "se_referer=\"https://www.google.com/\"; "
     "se_first_url=https%3A%2F%2Fwww.sporteasy.net%2Ffr%2F; "
     "se_last_url=\"/fr/profile/teams/\"; "
