@@ -481,16 +481,26 @@ if st.button("Charger les matchs"):
         five_days_ago = now - timedelta(days=5)
         
         for event in results:
-            if event["type"]['id'] == 7 and event["team_name"] != "ARBITRES" or event["type"]['id'] == 5 or event["type"]['id'] == 4 :
+            if (event["type"]['id'] == 7 and event["team_name"] != "ARBITRES") or event["type"]['id'] in [4, 5]:
                 dt = datetime.fromisoformat(event["start_at"])
                 dt_naive = dt.replace(tzinfo=None) if dt.tzinfo else dt
                 
+                # --- CORRECTION ICI ---
+                opp_left = event.get('opponent_left')
+                nom_gauche = opp_left.get('full_name', 'Équipe A') if opp_left else 'Adversaire inconnu'
+                
+                opp_right = event.get('opponent_right')
+                nom_droite = opp_right.get('full_name', 'Équipe B') if opp_right else 'Adversaire inconnu'
+                
+                team_name = event.get('team_name', 'Notre équipe')
+                
+                label = f"{dt.strftime('%d/%m')} - {team_name} : {nom_gauche} VS {nom_droite}"
+                # ----------------------
+                
                 if filter_5_days:
                     if dt_naive >= five_days_ago:
-                        label = f"{dt.strftime('%d/%m')} - {event['team_name']} : {event['opponent_left']['full_name']} VS {event['opponent_right']['full_name']}"
                         matchs.append({"label": label, "data": event})
                 else:
-                    label = f"{dt.strftime('%d/%m')} - {event['team_name']} : {event['opponent_left']['full_name']} VS {event['opponent_right']['full_name']}"
                     matchs.append({"label": label, "data": event})
         
         st.session_state['matchs'] = matchs
